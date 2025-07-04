@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Health Management Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 480px;
+            margin: 32px auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 24px 18px;
+        }
+        h2 {
+            text-align: center;
+            color: #27ae60;
+            margin-bottom: 18px;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        input[type="number"], input[type="text"], input[type="date"] {
+            width: 100%;
+            padding: 9px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        input[type="submit"] {
+            width: 100%;
+            background: #27ae60;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        input[type="submit"]:hover {
+            background: #219150;
+        }
+        .ai-section {
+            background: #eafaf1;
+            border-radius: 8px;
+            padding: 14px 12px;
+            margin-top: 22px;
+            margin-bottom: 18px;
+            border: 1px solid #b8eac7;
+        }
+        .ai-section h3 {
+            color: #27ae60;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        .history-section {
+            margin-top: 24px;
+        }
+        .history-section h3 {
+            color: #34495e;
+            margin-bottom: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+        th {
+            background: #27ae60;
+            color: #fff;
+        }
+        tr:nth-child(even) {
+            background: #f7fdf9;
+        }
+        .empty-state {
+            text-align: center;
+            color: #aaa;
+            padding: 16px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Daily Health Tracker</h2>
+        <form id="healthForm" autocomplete="off">
+            <div class="form-group">
+                <label for="date">Date</label>
+                <input type="date" id="date" required>
+            </div>
+            <div class="form-group">
+                <label for="steps">Steps Walked</label>
+                <input type="number" id="steps" min="0" placeholder="e.g. 8000" required>
+            </div>
+            <div class="form-group">
+                <label for="water">Water Intake (liters)</label>
+                <input type="number" id="water" min="0" step="0.1" placeholder="e.g. 2.5" required>
+            </div>
+            <div class="form-group">
+                <label for="sleep">Sleep (hours)</label>
+                <input type="number" id="sleep" min="0" max="24" step="0.1" placeholder="e.g. 7.5" required>
+            </div>
+            <div class="form-group">
+                <label for="workout">Workout Time (minutes)</label>
+                <input type="number" id="workout" min="0" max="300" step="1" placeholder="e.g. 30">
+            </div>
+            <div class="form-group">
+                <label for="notes">Notes (optional)</label>
+                <input type="text" id="notes" maxlength="100" placeholder="Any remarks...">
+            </div>
+            <input type="submit" value="Add Entry">
+        </form>
+
+        <div class="ai-section">
+            <h3><span style="font-size:1.1em;">🤖</span> AI Health Suggestions</h3>
+            <div id="aiAdvice">Enter your daily health data to get personalized suggestions!</div>
+        </div>
+
+        <div class="history-section">
+            <h3>History</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Steps</th>
+                        <th>Water (L)</th>
+                        <th>Sleep (h)</th>
+                        <th>Workout (min)</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    <tr><td colspan="6" class="empty-state">No entries yet.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        const form = document.getElementById('healthForm');
+        const aiAdvice = document.getElementById('aiAdvice');
+        const historyBody = document.getElementById('historyBody');
+
+        let entries = [];
+        // Load from localStorage if available
+        if (localStorage.getItem('healthEntries')) {
+            try {
+                entries = JSON.parse(localStorage.getItem('healthEntries')) || [];
+            } catch (e) { entries = []; }
+        }
+
+        function renderHistory() {
+            historyBody.innerHTML = '';
+            if (entries.length === 0) {
+                historyBody.innerHTML = '<tr><td colspan="6" class="empty-state">No entries yet.</td></tr>';
+                return;
+            }
+            entries.slice().reverse().forEach(entry => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${entry.date}</td>
+                    <td>${entry.steps}</td>
+                    <td>${entry.water}</td>
+                    <td>${entry.sleep}</td>
+                    <td>${entry.workout !== undefined ? entry.workout : ''}</td>
+                    <td>${entry.notes || ''}</td>
+                `;
+                historyBody.appendChild(tr);
+            });
+        }
+
+        function generateAIAdvice() {
+            if (entries.length === 0) {
+                aiAdvice.textContent = "Enter your daily health data to get personalized suggestions!";
+                return;
+            }
+            // Analyze last 3 entries for trends
+            const last = entries.slice(-3);
+            let avgSteps = last.reduce((sum, e) => sum + Number(e.steps), 0) / last.length;
+            let avgWater = last.reduce((sum, e) => sum + Number(e.water), 0) / last.length;
+            let avgSleep = last.reduce((sum, e) => sum + Number(e.sleep), 0) / last.length;
+            let avgWorkout = last.reduce((sum, e) => sum + (e.workout ? Number(e.workout) : 0), 0) / last.length;
+
+            let tips = [];
+            if (avgSteps < 7000) {
+                tips.push("Try to increase your daily steps. Aim for at least 7,000 steps.");
+            } else {
+                tips.push("Great job on your steps! Keep moving.");
+            }
+            if (avgWater < 2) {
+                tips.push("Increase your water intake. 2 liters or more is recommended.");
+            } else {
+                tips.push("You're well hydrated. Keep it up!");
+            }
+            if (avgSleep < 7) {
+                tips.push("Try to get at least 7 hours of sleep for better recovery.");
+            } else if (avgSleep > 9) {
+                tips.push("Sleeping too much? 7-9 hours is optimal for most adults.");
+            } else {
+                tips.push("Your sleep duration is healthy.");
+            }
+            if (avgWorkout < 20) {
+                tips.push("Try to include at least 20 minutes of workout in your daily routine.");
+            } else {
+                tips.push("Great job staying active with your workouts!");
+            }
+            // Motivation
+            const motivations = [
+                "Consistency is the key to a healthy lifestyle!",
+                "Small improvements every day lead to big results.",
+                "Your health is your wealth. Keep tracking!",
+                "Stay positive and keep moving forward!"
+            ];
+            const mot = motivations[Math.floor(Math.random() * motivations.length)];
+            aiAdvice.innerHTML = tips.map(t => "• " + t).join("<br>") + "<br><br><em>" + mot + "</em>";
+        }
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const date = document.getElementById('date').value;
+            const steps = Number(document.getElementById('steps').value);
+            const water = Number(document.getElementById('water').value);
+            const sleep = Number(document.getElementById('sleep').value);
+            const workout = document.getElementById('workout').value ? Number(document.getElementById('workout').value) : undefined;
+            const notes = document.getElementById('notes').value.trim();
+            if (!date || steps < 0 || water < 0 || sleep < 0 || (workout !== undefined && workout < 0)) return;
+            entries.push({ date, steps, water, sleep, workout, notes });
+            localStorage.setItem('healthEntries', JSON.stringify(entries));
+            form.reset();
+            // Set today's date as default
+            document.getElementById('date').value = new Date().toISOString().split('T')[0];
+            renderHistory();
+            generateAIAdvice();
+        });
+
+        // Set today's date as default
+        document.getElementById('date').value = new Date().toISOString().split('T')[0];
+
+        // Initial render
+        renderHistory();
+        generateAIAdvice();
+    </script>
+</body>
+</html>
